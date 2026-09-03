@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>DAF·01 — Delayed Audio Feedback</title>
+<style>
+  :root{
+    --bg: #15130f;
+    --panel: #1d1a14;
+    --panel-edge: #0d0c09;
+    --ink: #ece6d8;
+    --ink-dim: #8a8375;
+    --amber: #e8a33d;
+    --amber-dim: #7a5a26;
+    --led: #8fe3a6;
+    --led-dim: #2c4433;
+    --red: #c1443c;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0; min-height:100vh; background: var(--bg);
+    background-image:
+      radial-gradient(ellipse at 50% -10%, #26221a 0%, transparent 60%);
+    color: var(--ink); font-family: var(--sans);
+    display:flex; align-items:center; justify-content:center; padding: 28px 16px;
+  }
+  .unit{
+    width: 100%; max-width: 380px;
+    background: linear-gradient(180deg, var(--panel), #17140f);
+    border: 1px solid var(--panel-edge);
+    border-radius: 14px;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 20px 40px rgba(0,0,0,0.5);
+    padding: 20px 20px 24px;
+  }
+  .unit-head{
+    display:flex; justify-content:space-between; align-items:baseline;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding-bottom: 12px; margin-bottom: 18px;
+  }
+  .unit-head .tag{ font-family: var(--mono); font-size: 12px; color: var(--amber); letter-spacing: 0.08em; }
+  .unit-head .name{ font-size: 13px; color: var(--ink-dim); }
+
+  .meter{
+    display:flex; gap: 3px; height: 14px; margin-bottom: 22px;
+  }
+  .meter .seg{
+    flex:1; border-radius: 2px; background: #2a251c;
+    transition: background-color 60ms linear;
+  }
+
+  .knob-row{ display:flex; justify-content:center; margin-bottom: 6px; }
+  .knob-wrap{ position:relative; width: 156px; height: 156px; touch-action:none; }
+  .knob-face{
+    position:absolute; inset:0; border-radius:50%;
+    background: radial-gradient(circle at 32% 28%, #35301f, #201c14 70%);
+    border: 1px solid #0a0906;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.08);
+    cursor: grab;
+  }
+  .knob-face:active{ cursor: grabbing; }
+  .knob-pointer{
+    position:absolute; left:50%; top:8%; width: 3px; height: 34%;
+    background: var(--amber); border-radius: 2px;
+    transform-origin: 50% 260%;
+    box-shadow: 0 0 6px rgba(232,163,61,0.5);
+  }
+  .knob-center-dot{
+    position:absolute; left:50%; top:50%; width:6px; height:6px;
+    background: var(--panel-edge); border-radius:50%;
+    transform: translate(-50%,-50%);
+  }
+  .readout{
+    text-align:center; font-family: var(--mono); margin: 14px 0 4px;
+  }
+  .readout .digits{
+    font-size: 40px; color: var(--led); text-shadow: 0 0 12px rgba(143,227,166,0.35);
+    letter-spacing: 0.02em;
+  }
+  .readout .unit-label{ font-size: 11px; color: var(--ink-dim); letter-spacing: 0.12em; }
+
+  .row{ display:flex; align-items:center; gap: 10px; margin-top: 16px; }
+  .ms-input{
+    flex:1; background:#100e0a; border:1px solid #35301f; color: var(--ink);
+    font-family: var(--mono); font-size: 14px; border-radius: 6px; padding: 8px 10px;
+    text-align:center;
+  }
+  .ms-input:focus{ outline: 1px solid var(--amber); }
+
+  .presets{ display:flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .presets button{
+    flex:1; min-width: 50px; background:#100e0a; border:1px solid #35301f; color: var(--ink-dim);
+    font-family: var(--mono); font-size: 11px; padding: 6px 4px; border-radius: 6px; cursor:pointer;
+  }
+  .presets button:hover{ color: var(--ink); border-color: var(--amber-dim); }
+
+  .power-row{ display:flex; align-items:center; justify-content:space-between; margin-top: 22px; }
+  .status{ font-size: 12px; color: var(--ink-dim); font-family: var(--mono); }
+  .status.live{ color: var(--led); }
+  .status.err{ color: var(--red); }
+
+  .switch{
+    width: 52px; height: 28px; border-radius: 14px; background:#100e0a;
+    border: 1px solid #35301f; position:relative; cursor:pointer;
+  }
+  .switch .knob-slide{
+    position:absolute; top:2px; left:2px; width:22px; height:22px; border-radius:50%;
+    background: linear-gradient(180deg,#5a5240,#302a1c); transition: left 140ms ease, background 140ms ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+  }
+  .switch.on{ border-color: var(--amber-dim); }
+  .switch.on .knob-slide{ left: 26px; background: linear-gradient(180deg, var(--amber), #a5751f); }
+
+  .warn{
+    margin-top: 18px; font-size: 12px; line-height: 1.5; color: var(--ink-dim);
+    border-top: 1px solid rgba(255,255,255,0.06); padding-top: 14px;
+  }
+  .warn b{ color: var(--amber); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="unit">
+  <div class="unit-head">
+    <span class="tag">DAF·01</span>
+    <span class="name">delayed audio feedback</span>
+  </div>
+
+  <div class="meter" id="meter"></div>
+
+  <div class="knob-row">
+    <div class="knob-wrap" id="knobWrap">
+      <div class="knob-face" id="knobFace">
+        <div class="knob-pointer" id="knobPointer"></div>
+        <div class="knob-center-dot"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="readout">
+    <div class="digits" id="digits">200</div>
+    <div class="unit-label">milliseconds delay</div>
+  </div>
+
+  <div class="row">
+    <input class="ms-input" id="msInput" type="number" min="0" max="3000" step="1" value="200">
+  </div>
+
+  <div class="presets" id="presets">
+    <button data-ms="0">0</button>
+    <button data-ms="50">50</button>
+    <button data-ms="100">100</button>
+    <button data-ms="200">200</button>
+    <button data-ms="500">500</button>
+    <button data-ms="1000">1000</button>
+  </div>
+
+  <div class="power-row">
+    <span class="status" id="status">idle</span>
+    <div class="switch" id="powerSwitch"><div class="knob-slide"></div></div>
+  </div>
+
+  <div class="warn">
+    <b>Use headphones.</b> Playing the delayed signal through speakers will feed back into the microphone and loop.
+  </div>
+</div>
+
+<script>
+(function(){
+  const MAX_DELAY = 3000; // ms
+  const MIN_ANGLE = -135, MAX_ANGLE = 135;
+
+  const knobWrap = document.getElementById('knobWrap');
+  const knobPointer = document.getElementById('knobPointer');
+  const digits = document.getElementById('digits');
+  const msInput = document.getElementById('msInput');
+  const presets = document.getElementById('presets');
+  const powerSwitch = document.getElementById('powerSwitch');
+  const statusEl = document.getElementById('status');
+  const meterEl = document.getElementById('meter');
+
+  const SEGMENTS = 16;
+  for(let i=0;i<SEGMENTS;i++){
+    const d = document.createElement('div');
+    d.className = 'seg';
+    meterEl.appendChild(d);
+  }
+  const segs = Array.from(meterEl.children);
+
+  let delayMs = 200;
+  let running = false;
+  let audioCtx=null, stream=null, sourceNode=null, delayNode=null, gainNode=null, analyser=null, rafId=null;
+
+  function msToAngle(ms){
+    const clamped = Math.max(0, Math.min(MAX_DELAY, ms));
+    return MIN_ANGLE + (clamped/MAX_DELAY)*(MAX_ANGLE-MIN_ANGLE);
+  }
+  function angleToMs(angle){
+    const clamped = Math.max(MIN_ANGLE, Math.min(MAX_ANGLE, angle));
+    return Math.round((clamped-MIN_ANGLE)/(MAX_ANGLE-MIN_ANGLE)*MAX_DELAY);
+  }
+
+  function setDelay(ms, opts){
+    opts = opts || {};
+    delayMs = Math.max(0, Math.min(MAX_DELAY, Math.round(ms)));
+    knobPointer.style.transform = 'rotate(' + msToAngle(delayMs) + 'deg)';
+    digits.textContent = String(delayMs).padStart(3,'0');
+    if(opts.syncInput !== false) msInput.value = delayMs;
+    if(delayNode && audioCtx){
+      delayNode.delayTime.setTargetAtTime(delayMs/1000, audioCtx.currentTime, 0.01);
+    }
+    if(running){
+      statusEl.textContent = 'listening — ' + delayMs + ' ms';
+    }
+  }
+
+  // --- knob dragging ---
+  function angleFromEvent(e, rect){
+    const cx = rect.left + rect.width/2;
+    const cy = rect.top + rect.height/2;
+    const dx = e.clientX - cx;
+    const dy = e.clientY - cy;
+    return Math.atan2(dx, -dy) * 180/Math.PI; // 0 = top, +90 = right, -90 = left
+  }
+  let dragging = false;
+  knobWrap.addEventListener('pointerdown', (e)=>{
+    dragging = true;
+    knobWrap.setPointerCapture(e.pointerId);
+    const rect = knobWrap.getBoundingClientRect();
+    setDelay(angleToMs(angleFromEvent(e, rect)));
+  });
+  knobWrap.addEventListener('pointermove', (e)=>{
+    if(!dragging) return;
+    const rect = knobWrap.getBoundingClientRect();
+    setDelay(angleToMs(angleFromEvent(e, rect)));
+  });
+  knobWrap.addEventListener('pointerup', (e)=>{
+    dragging = false;
+    knobWrap.releasePointerCapture(e.pointerId);
+  });
+
+  msInput.addEventListener('change', ()=>{
+    const v = parseFloat(msInput.value);
+    if(!isNaN(v)) setDelay(v, {syncInput:false});
+  });
+
+  presets.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    setDelay(parseFloat(btn.dataset.ms));
+  });
+
+  // --- audio engine ---
+  async function start(){
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false
+        }
+      });
+    }catch(err){
+      statusEl.textContent = 'mic access denied';
+      statusEl.className = 'status err';
+      return false;
+    }
+
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+    sourceNode = audioCtx.createMediaStreamSource(stream);
+
+    delayNode = audioCtx.createDelay(MAX_DELAY/1000 + 0.5);
+    delayNode.delayTime.value = delayMs/1000;
+
+    gainNode = audioCtx.createGain();
+    gainNode.gain.value = 0.95;
+
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+
+    sourceNode.connect(analyser);
+    sourceNode.connect(delayNode);
+    delayNode.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    running = true;
+    statusEl.textContent = 'listening — ' + delayMs + ' ms';
+    statusEl.className = 'status live';
+    powerSwitch.classList.add('on');
+    tickMeter();
+    return true;
+  }
+
+  function stop(){
+    running = false;
+    if(rafId) cancelAnimationFrame(rafId);
+    if(stream) stream.getTracks().forEach(t=>t.stop());
+    if(audioCtx) audioCtx.close();
+    audioCtx = sourceNode = delayNode = gainNode = analyser = stream = null;
+    statusEl.textContent = 'idle';
+    statusEl.className = 'status';
+    powerSwitch.classList.remove('on');
+    segs.forEach(s => s.style.background = '#2a251c');
+  }
+
+  function tickMeter(){
+    if(!running || !analyser) return;
+    const data = new Uint8Array(analyser.fftSize);
+    analyser.getByteTimeDomainData(data);
+    let sumSquares = 0;
+    for(let i=0;i<data.length;i++){
+      const v = (data[i]-128)/128;
+      sumSquares += v*v;
+    }
+    const rms = Math.sqrt(sumSquares/data.length);
+    const lit = Math.min(segs.length, Math.round(rms*segs.length*3.2));
+    segs.forEach((seg, i)=>{
+      if(i < lit){
+        const frac = i/segs.length;
+        seg.style.background = frac > 0.85 ? 'var(--red)' : frac > 0.6 ? 'var(--amber)' : 'var(--led)';
+      } else {
+        seg.style.background = '#2a251c';
+      }
+    });
+    rafId = requestAnimationFrame(tickMeter);
+  }
+
+  powerSwitch.addEventListener('click', ()=>{
+    if(running) stop(); else start();
+  });
+
+  setDelay(delayMs);
+})();
+</script>
+</body>
+</html>
