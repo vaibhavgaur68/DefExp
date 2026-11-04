@@ -2,337 +2,177 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
-<title>DAF·01 — Delayed Audio Feedback</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FormCoach – Push-up Tracker</title>
 <style>
-  :root{
-    --bg: #15130f;
-    --panel: #1d1a14;
-    --panel-edge: #0d0c09;
-    --ink: #ece6d8;
-    --ink-dim: #8a8375;
-    --amber: #e8a33d;
-    --amber-dim: #7a5a26;
-    --led: #8fe3a6;
-    --led-dim: #2c4433;
-    --red: #c1443c;
-    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
-  }
-  *{ box-sizing: border-box; }
-  body{
-    margin:0; min-height:100vh; background: var(--bg);
-    background-image:
-      radial-gradient(ellipse at 50% -10%, #26221a 0%, transparent 60%);
-    color: var(--ink); font-family: var(--sans);
-    display:flex; align-items:center; justify-content:center; padding: 28px 16px;
-  }
-  .unit{
-    width: 100%; max-width: 380px;
-    background: linear-gradient(180deg, var(--panel), #17140f);
-    border: 1px solid var(--panel-edge);
-    border-radius: 14px;
-    box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 20px 40px rgba(0,0,0,0.5);
-    padding: 20px 20px 24px;
-  }
-  .unit-head{
-    display:flex; justify-content:space-between; align-items:baseline;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    padding-bottom: 12px; margin-bottom: 18px;
-  }
-  .unit-head .tag{ font-family: var(--mono); font-size: 12px; color: var(--amber); letter-spacing: 0.08em; }
-  .unit-head .name{ font-size: 13px; color: var(--ink-dim); }
-
-  .meter{
-    display:flex; gap: 3px; height: 14px; margin-bottom: 22px;
-  }
-  .meter .seg{
-    flex:1; border-radius: 2px; background: #2a251c;
-    transition: background-color 60ms linear;
-  }
-
-  .knob-row{ display:flex; justify-content:center; margin-bottom: 6px; }
-  .knob-wrap{ position:relative; width: 156px; height: 156px; touch-action:none; }
-  .knob-face{
-    position:absolute; inset:0; border-radius:50%;
-    background: radial-gradient(circle at 32% 28%, #35301f, #201c14 70%);
-    border: 1px solid #0a0906;
-    box-shadow: 0 8px 18px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.08);
-    cursor: grab;
-  }
-  .knob-face:active{ cursor: grabbing; }
-  .knob-pointer{
-    position:absolute; left:50%; top:8%; width: 3px; height: 34%;
-    background: var(--amber); border-radius: 2px;
-    transform-origin: 50% 260%;
-    box-shadow: 0 0 6px rgba(232,163,61,0.5);
-  }
-  .knob-center-dot{
-    position:absolute; left:50%; top:50%; width:6px; height:6px;
-    background: var(--panel-edge); border-radius:50%;
-    transform: translate(-50%,-50%);
-  }
-  .readout{
-    text-align:center; font-family: var(--mono); margin: 14px 0 4px;
-  }
-  .readout .digits{
-    font-size: 40px; color: var(--led); text-shadow: 0 0 12px rgba(143,227,166,0.35);
-    letter-spacing: 0.02em;
-  }
-  .readout .unit-label{ font-size: 11px; color: var(--ink-dim); letter-spacing: 0.12em; }
-
-  .row{ display:flex; align-items:center; gap: 10px; margin-top: 16px; }
-  .ms-input{
-    flex:1; background:#100e0a; border:1px solid #35301f; color: var(--ink);
-    font-family: var(--mono); font-size: 14px; border-radius: 6px; padding: 8px 10px;
-    text-align:center;
-  }
-  .ms-input:focus{ outline: 1px solid var(--amber); }
-
-  .presets{ display:flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
-  .presets button{
-    flex:1; min-width: 50px; background:#100e0a; border:1px solid #35301f; color: var(--ink-dim);
-    font-family: var(--mono); font-size: 11px; padding: 6px 4px; border-radius: 6px; cursor:pointer;
-  }
-  .presets button:hover{ color: var(--ink); border-color: var(--amber-dim); }
-
-  .power-row{ display:flex; align-items:center; justify-content:space-between; margin-top: 22px; }
-  .status{ font-size: 12px; color: var(--ink-dim); font-family: var(--mono); }
-  .status.live{ color: var(--led); }
-  .status.err{ color: var(--red); }
-
-  .switch{
-    width: 52px; height: 28px; border-radius: 14px; background:#100e0a;
-    border: 1px solid #35301f; position:relative; cursor:pointer;
-  }
-  .switch .knob-slide{
-    position:absolute; top:2px; left:2px; width:22px; height:22px; border-radius:50%;
-    background: linear-gradient(180deg,#5a5240,#302a1c); transition: left 140ms ease, background 140ms ease;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
-  }
-  .switch.on{ border-color: var(--amber-dim); }
-  .switch.on .knob-slide{ left: 26px; background: linear-gradient(180deg, var(--amber), #a5751f); }
-
-  .warn{
-    margin-top: 18px; font-size: 12px; line-height: 1.5; color: var(--ink-dim);
-    border-top: 1px solid rgba(255,255,255,0.06); padding-top: 14px;
-  }
-  .warn b{ color: var(--amber); font-weight: 600; }
+  :root{--bg:#0f1115;--card:#1a1d24;--txt:#f2f4f8;--mut:#8b93a1;--ok:#2ecc71;--bad:#ff4d4f;--acc:#4da3ff}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--txt);padding:12px;max-width:720px;margin:auto}
+  h1{font-size:1.3rem;margin:4px 0 12px}
+  .stage{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:4/3}
+  video,canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  #msg{position:absolute;left:0;right:0;bottom:0;padding:10px;text-align:center;font-weight:700;background:rgba(0,0,0,.6)}
+  .row{display:flex;gap:8px;margin:10px 0}
+  .card{flex:1;background:var(--card);border-radius:10px;padding:10px;text-align:center}
+  .card b{display:block;font-size:1.6rem}
+  .card span{color:var(--mut);font-size:.75rem}
+  button{background:var(--acc);color:#fff;border:0;border-radius:10px;padding:12px 16px;font-size:1rem;font-weight:600;flex:1}
+  button.sec{background:var(--card);color:var(--txt)}
+  .tips{background:var(--card);border-radius:10px;padding:10px 14px;color:var(--mut);font-size:.85rem;line-height:1.5}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:.85rem}
+  td,th{padding:6px;text-align:left;border-bottom:1px solid #2a2e37}
 </style>
 </head>
 <body>
+<h1>FormCoach · Push-up Tracker</h1>
 
-<div class="unit">
-  <div class="unit-head">
-    <span class="tag">DAF·01</span>
-    <span class="name">delayed audio feedback</span>
-  </div>
-
-  <div class="meter" id="meter"></div>
-
-  <div class="knob-row">
-    <div class="knob-wrap" id="knobWrap">
-      <div class="knob-face" id="knobFace">
-        <div class="knob-pointer" id="knobPointer"></div>
-        <div class="knob-center-dot"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="readout">
-    <div class="digits" id="digits">200</div>
-    <div class="unit-label">milliseconds delay</div>
-  </div>
-
-  <div class="row">
-    <input class="ms-input" id="msInput" type="number" min="0" max="3000" step="1" value="200">
-  </div>
-
-  <div class="presets" id="presets">
-    <button data-ms="0">0</button>
-    <button data-ms="50">50</button>
-    <button data-ms="100">100</button>
-    <button data-ms="200">200</button>
-    <button data-ms="500">500</button>
-    <button data-ms="1000">1000</button>
-  </div>
-
-  <div class="power-row">
-    <span class="status" id="status">idle</span>
-    <div class="switch" id="powerSwitch"><div class="knob-slide"></div></div>
-  </div>
-
-  <div class="warn">
-    <b>Use headphones.</b> Playing the delayed signal through speakers will feed back into the microphone and loop.
-  </div>
+<div class="stage">
+  <video id="v" playsinline muted></video>
+  <canvas id="c"></canvas>
+  <div id="msg">Press Start, then get into position</div>
 </div>
 
+<div class="row">
+  <div class="card"><b id="reps">0</b><span>REPS</span></div>
+  <div class="card"><b id="clean">0</b><span>CLEAN REPS</span></div>
+  <div class="card"><b id="today">0</b><span>TODAY TOTAL</span></div>
+</div>
+
+<div class="row">
+  <button id="start">Start</button>
+  <button id="stop" class="sec">Stop &amp; Save</button>
+</div>
+
+<div class="tips">
+  <b>Setup:</b> Place the phone/laptop on the floor ~2 m away, filming you from the <b>side</b> so your whole body is visible. Good lighting helps.
+  Fat loss comes from a calorie deficit plus full-body training — push-ups build the muscle under the chest, they don't spot-reduce fat.
+</div>
+
+<h3>History</h3>
+<table><thead><tr><th>Date</th><th>Reps</th><th>Clean</th></tr></thead><tbody id="hist"></tbody></table>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
 <script>
-(function(){
-  const MAX_DELAY = 3000; // ms
-  const MIN_ANGLE = -135, MAX_ANGLE = 135;
+const $ = id => document.getElementById(id);
+const video = $('v'), canvas = $('c'), ctx = canvas.getContext('2d');
+let running = false, stage = 'up', reps = 0, clean = 0, repBad = false, lastSpoken = 0, pose, stream;
 
-  const knobWrap = document.getElementById('knobWrap');
-  const knobPointer = document.getElementById('knobPointer');
-  const digits = document.getElementById('digits');
-  const msInput = document.getElementById('msInput');
-  const presets = document.getElementById('presets');
-  const powerSwitch = document.getElementById('powerSwitch');
-  const statusEl = document.getElementById('status');
-  const meterEl = document.getElementById('meter');
+// ---- storage (wrapped: may be unavailable) ----
+const KEY = 'formcoach_log';
+const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+const save = d => { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch {} };
+const todayKey = () => new Date().toISOString().slice(0, 10);
 
-  const SEGMENTS = 16;
-  for(let i=0;i<SEGMENTS;i++){
-    const d = document.createElement('div');
-    d.className = 'seg';
-    meterEl.appendChild(d);
+function renderHistory() {
+  const log = load();
+  $('today').textContent = (log[todayKey()] || {reps: 0}).reps;
+  $('hist').innerHTML = Object.keys(log).sort().reverse().slice(0, 14)
+    .map(d => `<tr><td>${d}</td><td>${log[d].reps}</td><td>${log[d].clean}</td></tr>`).join('');
+}
+
+// ---- helpers ----
+function angle(a, b, c) {
+  const r = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+  let d = Math.abs(r * 180 / Math.PI);
+  return d > 180 ? 360 - d : d;
+}
+function say(text, bad) {
+  $('msg').textContent = text;
+  $('msg').style.color = bad ? 'var(--bad)' : 'var(--ok)';
+  const now = Date.now();
+  if (bad && now - lastSpoken > 3000 && 'speechSynthesis' in window) {
+    lastSpoken = now;
+    speechSynthesis.speak(new SpeechSynthesisUtterance(text));
   }
-  const segs = Array.from(meterEl.children);
+}
 
-  let delayMs = 200;
-  let running = false;
-  let audioCtx=null, stream=null, sourceNode=null, delayNode=null, gainNode=null, analyser=null, rafId=null;
+// ---- pose results ----
+function onResults(res) {
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const lm = res.poseLandmarks;
+  if (!lm) { say('Step back so your whole body is in view', true); return; }
 
-  function msToAngle(ms){
-    const clamped = Math.max(0, Math.min(MAX_DELAY, ms));
-    return MIN_ANGLE + (clamped/MAX_DELAY)*(MAX_ANGLE-MIN_ANGLE);
-  }
-  function angleToMs(angle){
-    const clamped = Math.max(MIN_ANGLE, Math.min(MAX_ANGLE, angle));
-    return Math.round((clamped-MIN_ANGLE)/(MAX_ANGLE-MIN_ANGLE)*MAX_DELAY);
-  }
+  // choose the side facing the camera (higher visibility)
+  const vis = i => lm[i].visibility || 0;
+  const L = vis(11) + vis(13) + vis(15) + vis(23) + vis(27);
+  const R = vis(12) + vis(14) + vis(16) + vis(24) + vis(28);
+  const s = L >= R ? [11, 13, 15, 23, 27] : [12, 14, 16, 24, 28];
+  const [sh, el, wr, hip, ank] = s.map(i => lm[i]);
 
-  function setDelay(ms, opts){
-    opts = opts || {};
-    delayMs = Math.max(0, Math.min(MAX_DELAY, Math.round(ms)));
-    knobPointer.style.transform = 'rotate(' + msToAngle(delayMs) + 'deg)';
-    digits.textContent = String(delayMs).padStart(3,'0');
-    if(opts.syncInput !== false) msInput.value = delayMs;
-    if(delayNode && audioCtx){
-      delayNode.delayTime.setTargetAtTime(delayMs/1000, audioCtx.currentTime, 0.01);
+  const elbow = angle(sh, el, wr);
+  const body = angle(sh, hip, ank); // ~180 = straight plank line
+  const bad = body < 160;
+
+  drawSkeleton(lm, s, bad);
+
+  if (stage === 'up' && elbow < 100) { stage = 'down'; repBad = false; }
+  if (stage === 'down') {
+    if (bad) repBad = true;
+    if (elbow > 160) { // completed a rep
+      stage = 'up'; reps++;
+      if (!repBad) clean++;
+      $('reps').textContent = reps; $('clean').textContent = clean;
+      say(repBad ? 'Rep counted – fix your back line' : 'Clean rep!', repBad);
+      return;
     }
-    if(running){
-      statusEl.textContent = 'listening — ' + delayMs + ' ms';
+    if (elbow > 100 && elbow < 150 && !repBad) { /* mid-rep, no extra cue */ }
+  }
+  if (bad) say(sh.y < hip.y && hip.y > (sh.y + ank.y) / 2 ? 'Hips sagging – tighten your core' : 'Hips too high – straighten your body', true);
+  else if (stage === 'up') say('Good line. Lower until elbows hit ~90°', false);
+  else say('Push up!', false);
+}
+
+function drawSkeleton(lm, s, bad) {
+  const w = canvas.width, h = canvas.height;
+  ctx.lineWidth = 5; ctx.strokeStyle = bad ? '#ff4d4f' : '#2ecc71'; ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  s.forEach((i, k) => { const p = lm[i]; k ? ctx.lineTo(p.x * w, p.y * h) : ctx.moveTo(p.x * w, p.y * h); });
+  ctx.stroke();
+  s.forEach(i => { ctx.beginPath(); ctx.arc(lm[i].x * w, lm[i].y * h, 6, 0, 7); ctx.fill(); });
+}
+
+// ---- loop ----
+async function loop() {
+  if (!running) return;
+  if (video.readyState >= 2) await pose.send({image: video});
+  requestAnimationFrame(loop);
+}
+
+$('start').onclick = async () => {
+  if (running) return;
+  try {
+    say('Loading model…', false);
+    stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'user', width: 640, height: 480}});
+    video.srcObject = stream; await video.play();
+    if (!pose) {
+      pose = new Pose({locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${f}`});
+      pose.setOptions({modelComplexity: 0, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
+      pose.onResults(onResults);
     }
+    reps = 0; clean = 0; stage = 'up';
+    $('reps').textContent = 0; $('clean').textContent = 0;
+    running = true; loop();
+  } catch (e) {
+    say('Camera/model error: ' + e.message, true);
   }
+};
 
-  // --- knob dragging ---
-  function angleFromEvent(e, rect){
-    const cx = rect.left + rect.width/2;
-    const cy = rect.top + rect.height/2;
-    const dx = e.clientX - cx;
-    const dy = e.clientY - cy;
-    return Math.atan2(dx, -dy) * 180/Math.PI; // 0 = top, +90 = right, -90 = left
+$('stop').onclick = () => {
+  running = false;
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  if (reps > 0) {
+    const log = load(), k = todayKey();
+    log[k] = log[k] || {reps: 0, clean: 0};
+    log[k].reps += reps; log[k].clean += clean;
+    save(log);
   }
-  let dragging = false;
-  knobWrap.addEventListener('pointerdown', (e)=>{
-    dragging = true;
-    knobWrap.setPointerCapture(e.pointerId);
-    const rect = knobWrap.getBoundingClientRect();
-    setDelay(angleToMs(angleFromEvent(e, rect)));
-  });
-  knobWrap.addEventListener('pointermove', (e)=>{
-    if(!dragging) return;
-    const rect = knobWrap.getBoundingClientRect();
-    setDelay(angleToMs(angleFromEvent(e, rect)));
-  });
-  knobWrap.addEventListener('pointerup', (e)=>{
-    dragging = false;
-    knobWrap.releasePointerCapture(e.pointerId);
-  });
+  say(reps ? `Saved ${reps} reps` : 'Stopped', false);
+  reps = 0; clean = 0; $('reps').textContent = 0; $('clean').textContent = 0;
+  renderHistory();
+};
 
-  msInput.addEventListener('change', ()=>{
-    const v = parseFloat(msInput.value);
-    if(!isNaN(v)) setDelay(v, {syncInput:false});
-  });
-
-  presets.addEventListener('click', (e)=>{
-    const btn = e.target.closest('button');
-    if(!btn) return;
-    setDelay(parseFloat(btn.dataset.ms));
-  });
-
-  // --- audio engine ---
-  async function start(){
-    try{
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false
-        }
-      });
-    }catch(err){
-      statusEl.textContent = 'mic access denied';
-      statusEl.className = 'status err';
-      return false;
-    }
-
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
-    sourceNode = audioCtx.createMediaStreamSource(stream);
-
-    delayNode = audioCtx.createDelay(MAX_DELAY/1000 + 0.5);
-    delayNode.delayTime.value = delayMs/1000;
-
-    gainNode = audioCtx.createGain();
-    gainNode.gain.value = 0.95;
-
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 256;
-
-    sourceNode.connect(analyser);
-    sourceNode.connect(delayNode);
-    delayNode.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-
-    running = true;
-    statusEl.textContent = 'listening — ' + delayMs + ' ms';
-    statusEl.className = 'status live';
-    powerSwitch.classList.add('on');
-    tickMeter();
-    return true;
-  }
-
-  function stop(){
-    running = false;
-    if(rafId) cancelAnimationFrame(rafId);
-    if(stream) stream.getTracks().forEach(t=>t.stop());
-    if(audioCtx) audioCtx.close();
-    audioCtx = sourceNode = delayNode = gainNode = analyser = stream = null;
-    statusEl.textContent = 'idle';
-    statusEl.className = 'status';
-    powerSwitch.classList.remove('on');
-    segs.forEach(s => s.style.background = '#2a251c');
-  }
-
-  function tickMeter(){
-    if(!running || !analyser) return;
-    const data = new Uint8Array(analyser.fftSize);
-    analyser.getByteTimeDomainData(data);
-    let sumSquares = 0;
-    for(let i=0;i<data.length;i++){
-      const v = (data[i]-128)/128;
-      sumSquares += v*v;
-    }
-    const rms = Math.sqrt(sumSquares/data.length);
-    const lit = Math.min(segs.length, Math.round(rms*segs.length*3.2));
-    segs.forEach((seg, i)=>{
-      if(i < lit){
-        const frac = i/segs.length;
-        seg.style.background = frac > 0.85 ? 'var(--red)' : frac > 0.6 ? 'var(--amber)' : 'var(--led)';
-      } else {
-        seg.style.background = '#2a251c';
-      }
-    });
-    rafId = requestAnimationFrame(tickMeter);
-  }
-
-  powerSwitch.addEventListener('click', ()=>{
-    if(running) stop(); else start();
-  });
-
-  setDelay(delayMs);
-})();
+renderHistory();
 </script>
 </body>
 </html>
