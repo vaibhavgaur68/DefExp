@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Home Build Tracker</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f6f4ef;--card:#fff;--ink:#1d1d1b;--mut:#6f6b63;--line:#e4e0d6;--acc:#c2410c;--acc2:#9a3412;--ok:#15803d;--bad:#b91c1c}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171614;--card:#23211e;--ink:#f1ede4;--mut:#a39d90;--line:#37342e;--acc:#fb923c;--acc2:#fdba74;--ok:#4ade80;--bad:#f87171}}
+:root[data-theme="dark"]{--bg:#171614;--card:#23211e;--ink:#f1ede4;--mut:#a39d90;--line:#37342e;--acc:#fb923c;--acc2:#fdba74;--ok:#4ade80;--bad:#f87171}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;padding-bottom:90px}
+.wrap{max-width:640px;margin:0 auto;padding:14px}
+h1{font-size:20px;margin:4px 0 2px}
+.sub{color:var(--mut);font-size:13px;margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.big{font-size:30px;font-weight:700;letter-spacing:-.5px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1;min-width:120px}
+.lbl{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
+.bar{height:8px;background:var(--line);border-radius:6px;overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;background:var(--acc)}
+.cat{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:15px}
+.cat:last-child{border:0}
+input,select,textarea,button{font:inherit;color:inherit}
+input,select,textarea{width:100%;padding:11px;border:1px solid var(--line);border-radius:10px;background:var(--bg);margin-top:4px}
+label{display:block;font-size:13px;color:var(--mut);margin-top:10px}
+button{border:0;border-radius:10px;padding:11px 14px;background:var(--line);cursor:pointer}
+button.p{background:var(--acc);color:#fff;font-weight:600}
+button.d{color:var(--bad)}
+.fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));padding:15px 20px;border-radius:30px;box-shadow:0 4px 14px rgba(0,0,0,.3);font-size:16px}
+.item{padding:11px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;cursor:pointer}
+.item:last-child{border:0}
+.item b{display:block}
+.m{color:var(--mut);font-size:13px}
+.amt{text-align:right;white-space:nowrap;font-weight:600}
+.due{color:var(--bad);font-size:12px;font-weight:600}
+.tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:9px;background:var(--line);margin-right:4px}
+dialog{border:0;border-radius:16px;padding:16px;width:min(560px,94vw);background:var(--card);color:var(--ink);max-height:92vh;overflow:auto}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+.tot{background:var(--bg);border-radius:10px;padding:10px;margin-top:12px;display:flex;justify-content:space-between;font-weight:600}
+.banner{font-size:13px;padding:8px 10px;border-radius:10px;margin-bottom:10px}
+.ok{background:rgba(21,128,61,.12);color:var(--ok)}
+.warn{background:rgba(185,28,28,.12);color:var(--bad)}
+.empty{text-align:center;color:var(--mut);padding:24px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🏗️ Home Build Tracker</h1>
+  <div class="sub">Every rupee, recorded.</div>
+  <div id="status" class="banner ok">Loading…</div>
+
+  <div class="card">
+    <div class="lbl">Total spent</div>
+    <div class="big" id="total">₹0</div>
+    <div class="row" style="margin-top:8px">
+      <div><div class="lbl">Paid</div><b id="paid">₹0</b></div>
+      <div><div class="lbl">Still to pay</div><b id="due" style="color:var(--bad)">₹0</b></div>
+    </div>
+    <div style="margin-top:10px"><span class="lbl">Budget</span> <button id="bBtn" style="padding:4px 10px;font-size:13px">Set</button>
+      <span id="bTxt" class="m"></span></div>
+    <div class="bar"><i id="bBar" style="width:0"></i></div>
+  </div>
+
+  <div class="card"><div class="lbl" style="margin-bottom:4px">By category</div><div id="cats"></div></div>
+
+  <div class="card">
+    <div class="row">
+      <input id="q" placeholder="Search item or supplier…">
+      <select id="fc"></select>
+    </div>
+    <label style="margin-top:6px"><input type="checkbox" id="fd" style="width:auto;margin:0 6px 0 0">Only show unpaid / pending</label>
+    <div id="list" style="margin-top:6px"></div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">Backup</div>
+    <div class="row" style="margin-top:8px">
+      <button id="exCsv">Export CSV</button>
+      <button id="exJson">Backup file (JSON)</button>
+      <button id="imp">Restore backup</button>
+    </div>
+    <input type="file" id="file" accept=".json" hidden>
+  </div>
+</div>
+
+<button class="p fab" id="add">＋ Add expense</button>
+
+<dialog id="dlg">
+  <h2 id="dt" style="margin:0 0 4px;font-size:18px">Add expense</h2>
+  <label>Date<input type="date" id="fDate"></label>
+  <label>Category<select id="fCat"></select></label>
+  <label>Item / description<input id="fItem" placeholder="e.g. 2 trolley gitti, 3 days wages"></label>
+  <label>Paid to (optional)<input id="fParty" placeholder="Supplier or worker name"></label>
+  <div class="row">
+    <label>Quantity<input id="fQty" type="number" inputmode="decimal" step="any" value="1"></label>
+    <label>Rate (₹ per unit)<input id="fRate" type="number" inputmode="decimal" step="any"></label>
+  </div>
+  <label>Unit <input id="fUnit" placeholder="trolley, bags, kg, days…"></label>
+  <div class="tot"><span>Total</span><span id="fTot">₹0</span></div>
+  <label>Amount paid so far (₹)<input id="fPaid" type="number" inputmode="decimal" step="any" placeholder="Leave blank = fully paid"></label>
+  <label>Note (optional)<textarea id="fNote" rows="2"></textarea></label>
+  <div class="row" style="margin-top:14px">
+    <button class="p" id="save">Save</button>
+    <button id="cancel">Cancel</button>
+    <button class="d" id="del" hidden>Delete</button>
+  </div>
+</dialog>
+
+<script>
+const CATS=["Gitti","Morang","Sariya","Eet","Cement","Wood","Labour - Mistry","Labour - Labour","Other"];
+const $=id=>document.getElementById(id);
+const LS="hbt_items_v1",LB="hbt_budget_v1",LF="hbt_synced_v1";
+let items=[],budget=0,db=null,editing=null;
+
+/* money is held in paise (integers) so totals never drift */
+const P=v=>Math.round((parseFloat(v)||0)*100);
+const R=p=>"₹"+(p/100).toLocaleString("en-IN",{minimumFractionDigits:p%100?2:0,maximumFractionDigits:2});
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+
+function setStatus(t,ok){const s=$("status");s.textContent=t;s.className="banner "+(ok?"ok":"warn")}
+function lsGet(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+
+/* ---------- storage: cloud db (primary) + device copy (backup) ---------- */
+async function init(){
+  items=lsGet(LS,[]);budget=lsGet(LB,0);render();
+  try{
+    const c=window.claude&&await Promise.race([claude.use("db"),new Promise(r=>setTimeout(()=>r(null),10000))]);
+    db=c||null;
+  }catch(e){db=null}
+  if(!db){setStatus("⚠ Saving on this device only. Use Backup regularly.",false);return}
+  setStatus("✓ Saved securely online + on this device",true);
+  const col=db.collection("expenses");
+  col.onSnapshot(snap=>{
+    const arr=snap.docs.map(d=>d.data()).filter(Boolean);
+    if(!arr.length&&!lsGet(LF,false)&&items.length){items.forEach(x=>col.doc(x.id).set(x).catch(()=>{}))}
+    else{items=arr;lsSet(LS,items)}
+    lsSet(LF,true);render();
+  },e=>setStatus("⚠ Online sync problem — your device copy is safe.",false));
+  db.doc("meta/budget").onSnapshot(d=>{if(d.exists){budget=d.data().v||0;lsSet(LB,budget);render()}},()=>{});
+}
+async function saveItem(x){
+  const i=items.findIndex(a=>a.id===x.id);i>=0?items[i]=x:items.push(x);lsSet(LS,items);render();
+  if(db)try{await db.collection("expenses").doc(x.id).set(x)}catch(e){setStatus("⚠ Online save failed — kept on device. Try again.",false)}
+}
+async function delItem(id){
+  items=items.filter(a=>a.id!==id);lsSet(LS,items);render();
+  if(db)try{await db.collection("expenses").doc(id).delete()}catch(e){setStatus("⚠ Online delete failed.",false)}
+}
+
+/* ---------- render ---------- */
+function render(){
+  const tot=items.reduce((s,x)=>s+x.total,0),paid=items.reduce((s,x)=>s+x.paid,0);
+  $("total").textContent=R(tot);$("paid").textContent=R(paid);$("due").textContent=R(tot-paid);
+  $("bTxt").textContent=budget?R(budget)+" · "+Math.round(tot/budget*100)+"% used · "+R(budget-tot)+" left":"not set";
+  const pct=budget?Math.min(100,tot/budget*100):0;$("bBar").style.width=pct+"%";$("bBar").style.background=tot>budget&&budget?"var(--bad)":"var(--acc)";
+  const by={};items.forEach(x=>by[x.cat]=(by[x.cat]||0)+x.total);
+  $("cats").innerHTML=Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="cat"><span>${esc(k)}</span><b>${R(v)}</b></div>`).join("")||'<div class="m">Nothing yet</div>';
+  const q=$("q").value.toLowerCase(),fc=$("fc").value,fd=$("fd").checked;
+  const list=items.filter(x=>(!fc||x.cat===fc)&&(!fd||x.total>x.paid)&&(!q||(x.item+" "+x.party+" "+x.note).toLowerCase().includes(q))).sort((a,b)=>b.date.localeCompare(a.date)||b.ts-a.ts);
+  $("list").innerHTML=list.map(x=>`<div class="item" data-id="${x.id}"><div><b>${esc(x.item)}</b><span class="tag">${esc(x.cat)}</span><span class="m">${x.date}${x.party?" · "+esc(x.party):""}</span>${x.qty!=1||x.unit?`<div class="m">${x.qty} ${esc(x.unit)} × ${R(x.rate)}</div>`:""}</div><div class="amt">${R(x.total)}${x.total>x.paid?`<div class="due">Due ${R(x.total-x.paid)}</div>`:""}</div></div>`).join("")||'<div class="empty">No expenses yet.<br>Tap “Add expense” to begin.</div>';
+}
+$("list").onclick=e=>{const el=e.target.closest(".item");if(el)openDlg(items.find(x=>x.id===el.dataset.id))};
+["q","fc","fd"].forEach(i=>$(i).oninput=render);
+
+/* ---------- form ---------- */
+function calc(){const t=P(parseFloat($("fQty").value)*parseFloat($("fRate").value)/1*1/1);return t}
+function totalP(){const q=parseFloat($("fQty").value)||0,r=parseFloat($("fRate").value)||0;return Math.round(q*r*100)}
+function upd(){$("fTot").textContent=R(totalP())}
+["fQty","fRate"].forEach(i=>$(i).oninput=upd);
+function openDlg(x){
+  editing=x||null;$("dt").textContent=x?"Edit expense":"Add expense";$("del").hidden=!x;
+  $("fDate").value=x?x.date:today();$("fCat").value=x?x.cat:CATS[0];$("fItem").value=x?x.item:"";$("fParty").value=x?x.party:"";
+  $("fQty").value=x?x.qty:1;$("fRate").value=x?x.rate/100:"";$("fUnit").value=x?x.unit:"";
+  $("fPaid").value=x&&x.paid!==x.total?x.paid/100:"";$("fNote").value=x?x.note:"";
+  upd();$("dlg").showModal();
+}
+$("add").onclick=()=>openDlg();$("cancel").onclick=()=>$("dlg").close();
+$("save").onclick=()=>{
+  const item=$("fItem").value.trim(),total=totalP();
+  if(!item){alert("Please enter what this expense is for.");return}
+  if(total<=0){alert("Please enter quantity and rate (use quantity 1 for a lump sum).");return}
+  const pv=$("fPaid").value,paid=pv===""?total:Math.min(P(pv),total);
+  saveItem({id:editing?editing.id:"e"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),date:$("fDate").value||today(),cat:$("fCat").value,item,party:$("fParty").value.trim(),qty:parseFloat($("fQty").value)||1,rate:Math.round((parseFloat($("fRate").value)||0)*100),unit:$("fUnit").value.trim(),total,paid,note:$("fNote").value.trim(),ts:editing?editing.ts:Date.now()});
+  $("dlg").close();
+};
+$("del").onclick=()=>{if(editing&&confirm("Delete this expense permanently?")){delItem(editing.id);$("dlg").close()}};
+$("bBtn").onclick=async()=>{
+  const v=prompt("Total budget for the house (₹):",budget/100||"");if(v===null)return;
+  budget=P(v);lsSet(LB,budget);render();
+  if(db)try{await db.doc("meta/budget").set({v:budget})}catch(e){}
+};
+
+/* ---------- backup / export ---------- */
+async function out(name,data){
+  try{const d=await claude.use("downloads");if(d){await d.save({filename:name,data});return}}catch(e){if(e&&e.code==="declined")return}
+  alert("Download isn't available here. Your data is still saved.");
+}
+$("exCsv").onclick=()=>{
+  const h=["Date","Category","Item","Supplier","Qty","Unit","Rate","Total","Paid","Due","Mode","Notes"];
+  const q=s=>'"'+String(s??"").replace(/"/g,'""')+'"';
+  const rows=[...items].sort((a,b)=>a.date.localeCompare(b.date)).map(x=>[x.date,x.cat,x.item,x.party,x.qty,x.unit,x.rate/100,x.total/100,x.paid/100,(x.total-x.paid)/100,x.mode,x.note].map(q).join(","));
+  out("home-expenses-"+today()+".csv",[h.join(","),...rows].join("\n"));
+};
+$("exJson").onclick=()=>out("home-build-backup-"+today()+".json",JSON.stringify({budget,items},null,1));
+$("imp").onclick=()=>$("file").click();
+$("file").onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const j=JSON.parse(await f.text());if(!Array.isArray(j.items))throw 0;
+    if(!confirm("Restore "+j.items.length+" expenses from this backup? Matching entries are overwritten; nothing else is deleted."))return;
+    for(const x of j.items)await saveItem(x);
+    if(j.budget){budget=j.budget;lsSet(LB,budget);if(db)db.doc("meta/budget").set({v:budget}).catch(()=>{});render()}
+  }catch(err){alert("That file doesn't look like a valid backup.")}
+  e.target.value="";
+};
+
+$("fCat").innerHTML=CATS.map(c=>`<option>${c}</option>`).join("");
+$("fc").innerHTML='<option value="">All categories</option>'+CATS.map(c=>`<option>${c}</option>`).join("");
+init();
+</script>
+</body>
+</html>
